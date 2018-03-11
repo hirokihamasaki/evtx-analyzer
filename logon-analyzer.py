@@ -18,7 +18,7 @@ def timediff(strtime1, strtime2, strptime="%Y-%m-%d %H:%M:%S.%f"):
         return datetime.strptime(strtime2, strptime) - datetime.strptime(strtime1, strptime)
 
 
-def parse4624():
+def core():
     parser = argparse.ArgumentParser(
         description="Parse logon event combined with correspond logoff event.")
     parser.add_argument("evtx", type=str,
@@ -27,6 +27,7 @@ def parse4624():
     listDict4624 = [] 
     listDict4634 = []
     listDict4672 = []
+    listDict4648 = []
     with open(args.evtx,"r") as fobj:
         logs = fobj.read().split("\n\n")[1:-1]
         for record in logs:
@@ -53,7 +54,6 @@ def parse4624():
                 dictTmp["ProcessId"]=elem.findtext(".//Data[@Name='ProcessId']")
                 dictTmp["LogonProcessName"]=elem.findtext(".//Data[@Name='LogonProcessName']")
                 dictTmp["LogonId"]=elem.findtext(".//Data[@Name='TargetLogonId']")
-                dictTmp["LogonGuid"]=elem.findtext(".//Data[@Name='LogonGuid']")
                 listDict4624.append(dictTmp)
             elif elem.findtext(".//EventID") == "4634":
                 dictTmp["LogoffTime"]=elem.find(".//TimeCreated").get("SystemTime")
@@ -64,6 +64,22 @@ def parse4624():
                 dictTmp["LogonId"]=elem.findtext(".//Data[@Name='SubjectLogonId']")
                 if int(dictTmp["LogonId"],16) > 0x400:
                     listDict4672.append(dictTmp)
+            elif elem.findtext(".//EventID") == "4648":
+                dictTmp["TryLogonOtherMachineTime"]=elem.find(".//TimeCreated").get("SystemTime")
+                dictTmp["TargetServerName"]=elem.findtext(".//Data[@Name='TargetServerName']")
+                dictTmp["TargetInfo"]=elem.findtext(".//Data[@Name='TargetInfo']")
+                dictTmp["TargetUserName"]=elem.findtext(".//Data[@Name='TargetUserName']")
+                dictTmp["TargetDomainName"]=elem.findtext(".//Data[@Name='TargetDomainName']")
+                dictTmp["IpAddress"]=elem.findtext(".//Data[@Name='IpAddress']")
+                dictTmp["IpPort"]=elem.findtext(".//Data[@Name='IpPort']")
+                dictTmp["ProcessName"]=elem.findtext(".//Data[@Name='ProcessName']")
+                dictTmp["ProcessId"]=elem.findtext(".//Data[@Name='ProcessId']")
+                dictTmp["SubjectUserName"]=elem.findtext(".//Data[@Name='SubjectUserName']")
+                dictTmp["SubjectUserSid"]=elem.findtext(".//Data[@Name='SubjectUserSid']")
+                dictTmp["SubjectDomainName"]=elem.findtext(".//Data[@Name='SubjectDomainName']")
+                dictTmp["LogonId"]=elem.findtext(".//Data[@Name='SubjectLogonId']")
+                if int(dictTmp["LogonId"],16) > 0x400:
+                    listDict4648.append(dictTmp)
             else:
                 pass
 
@@ -71,10 +87,17 @@ def parse4624():
     dfLogoff = pd.DataFrame(listDict4634)
     dfGetPriv = pd.DataFrame(listDict4672).groupby("LogonId")["PrivEscalateTime"] \
       .apply( lambda x: "{%s}"%",".join(x)).reset_index()
-    dfGetPriv.to_excel("Priv.xlsx", sheet_name="Logon-off")
-    dfLogonOff = pd.merge(dfLogon, dfLogoff, on="LogonId", how="left")
-    #dfOut = pd.merge(dfLogon, dfLogoff, on="LogonId", how="left")
-    dfOut = pd.merge(dfLogonOff, dfGetPriv, on="LogonId", how="left")
+    df4648 = pd.DataFrame(listDict4648)
+    dfGetPriv.to_excel("4672.xlsx", sheet_name="Logon-off")
+    df4648.to_excel("4648.xlsx", sheet_name="Logon-off")
+    df4648.to_csv("4648.csv")
+    df4648 = df4648.groupby("LogonId")["TargetServerName"].count().reset_index()
+    df4648.rename(columns={"TargetServerName":"#ExplicitLogonTrial"},inplace=True)
+
+    dfOut = pd.merge(dfLogon, dfLogoff, on="LogonId", how="left")
+    dfOut = pd.merge(dfOut, dfGetPriv, on="LogonId", how="left")
+    dfOut = pd.merge(dfOut, df4648, on="LogonId", how="left")
+    dfOut["#ExplicitLogonTrial"].fillna("-",inplace=True)
     dfOut["LogonDuration"] = \
       pd.Series([timediff(dfOut["LogonTime"][i], dfOut["LogoffTime"][i]) for i in xrange(0,len(dfOut))])
     col = dfOut.columns.tolist()
@@ -93,11 +116,13 @@ if __name__ == "__main__":
     parser.add_argument("evtx", type=str,
                         help="Path to the Windows EVTX event log file")
     args = parser.parse_args()
-    result = parse4624()
-    outFile = "4624-4634_"+os.path.splitext(os.path.basename(args.evtx))[0]+".xlsx"
+    result = core()
+    outFile = "evtx_analysis_result_"+os.path.splitext(os.path.basename(args.evtx))[0]+".xlsx"
+    outFile2 = "evtx_analysis_result_"+os.path.splitext(os.path.basename(args.evtx))[0]+".csv"
     pandas.io.formats.excel.header_style = None
     writer = pd.ExcelWriter(outFile)
     result.to_excel(writer, sheet_name="Logon-off")
+    result.to_csv(outFile2)
     workbook = writer.book
     workbook.formats[0].set_font_name('Calibri')
     workbook.formats[0].set_font_size(9)
