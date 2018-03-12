@@ -15,7 +15,8 @@ def timediff(strtime1, strtime2, strptime="%Y-%m-%d %H:%M:%S.%f"):
     if pd.isna(strtime1) or pd.isna(strtime2):
         return "NULL"
     else:
-        return datetime.strptime(strtime2, strptime) - datetime.strptime(strtime1, strptime)
+        delta = datetime.strptime(strtime2, strptime) - datetime.strptime(strtime1, strptime)
+        return delta.total_seconds()
 
 
 def core():
