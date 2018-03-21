@@ -38,7 +38,6 @@ def analyze_logon(fobj):
                             'SubjectUserSid', 'SubjectDomainName', 'SubjectLogonId',
                             'TargetUserSid', 'ProcessId', 'LogonProcessName',
                             'TargetLogonId']
-    dictTmp = OrderedDict()
     
     while True:
         try:
@@ -52,7 +51,10 @@ def analyze_logon(fobj):
         except:
             print "There is </Event> but not <Event>. Conitnue to next"
             continue
+        print event
+        print "==="
         record = xmltodict.parse(event)
+        dictTmp = OrderedDict()
         if record["Event"]["System"]["EventID"]["#text"] == "4624":
             dictTmp["Time"] = record["Event"]["System"]["TimeCreated"]["@SystemTime"]
             
@@ -72,7 +74,7 @@ def analyze_logon(fobj):
     dfLogon.to_csv("4624.csv")
 
 
-def analyze_logon(fobj):
+def analyze_rdp(fobj):
     result = []
     listTargetAttr4624 = ['LogonType', 'TargetUserName', 'TargetDomainName', 
                             'IpAddress', 'IpPort', 'WorkstationName', 'ProcessName',

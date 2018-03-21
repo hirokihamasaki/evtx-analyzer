@@ -37,14 +37,19 @@ def core():
     listDict4634 = []
     listDict4672 = []
     listDict4648 = []
-    with open(args.evtx,"r") as fobj:
-        logs = fobj.read().split("\n\n")
-        for record in logs:
+    fobj =  open(args.evtx,"r")
+    line = fobj.readline()
+    record = line
+    while line:
+        line = fobj.readline()
+        if line != "\n":
+            record += line
+        else:
             try:
                 elem = et.fromstring(record.replace("xmlns=\"","ns=\""))
             except:
                 continue
-            dictTmp = OrderedDict()
+        	dictTmp = OrderedDict()
             if elem.findtext(".//EventID") == "4624":
                 dictTmp["LogonTime"]=elem.find(".//TimeCreated").get("SystemTime")
                 dictTmp["LogonType"]=elem.findtext(".//Data[@Name='LogonType']")
