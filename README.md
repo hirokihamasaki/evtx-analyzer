@@ -17,14 +17,14 @@ pip install python-evtx pandas openpyxl XlsxWriter
 
 ## analysis modules
 ### logon
-We can get information below on each LUID(so called logon ID) which assigned by Windows authentication package.
+We can get information below on each LUID(so called logon ID) which assigned by Windows authentication package from Security.evtx.
 * "logontime/logofftime"
 * "get privilege?"
 * "do explicit credential use logon"? 
 * etc...
 
 ### rdpclient
-We can get information below on each Correlation ActivityID which assigned to each rdp connection attempt.
+We can get information below on each Correlation ActivityID which assigned to each rdp connection attempt from Microsoft-Windows-TerminalServices-RDPClient%4Operational.evtx.
 * ConnectTime
 * logon success time
 * target server ip
