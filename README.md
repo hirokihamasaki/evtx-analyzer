@@ -1,4 +1,4 @@
-# security-evtx-analyzer
+# evtx-analyzer
 These scripts help to check lateral movement activity by adversaries.
 The output formt is Microsoft Excel(.xlsx) so that we can easily do further analysis and reporting to the customer.
 
