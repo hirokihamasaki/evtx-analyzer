@@ -9,6 +9,7 @@ import xmltodict
 from collections import OrderedDict
 import pandas.io.formats.excel
 from datetime import datetime
+import json
 
 def timediff(strtime1, strtime2, strptime="%Y-%m-%d %H:%M:%S.%f"):
     if pd.isna(strtime1) or pd.isna(strtime2):
@@ -149,15 +150,23 @@ def analyze_logon(fobj):
     col.insert(1,'LogoffTime')
     col.remove('LogonDuration')
     col.insert(2,'LogonDuration')
-    output.ix[:,col]
 
     return output.ix[:,col]
 
 
 def analyze_rdpclient(fobj):
-    result = []
-    target_attr = ['Value']
-    dictTmp = OrderedDict()
+    result_1024 = []
+    result_1029 = []
+    result_1026 = []
+    result_1027 = []
+    target_attr_1024 = ['Value']
+    
+    target_attr_1029 = ['TraceMessage']
+    
+    target_attr_1026 = ['Value']
+    
+    target_attr_1027 = ['DomainName','SessionId']
+
     
     while True:
         try:
@@ -172,24 +181,135 @@ def analyze_rdpclient(fobj):
             print "There is </Event> but not <Event>. Conitnue to next"
             continue
         record = xmltodict.parse(event)
-        if record["Event"]["System"]["EventID"]["#text"] == "4624":
+        dictTmp = OrderedDict()
+        if record["Event"]["System"]["EventID"]["#text"] == "1024":
+            dictTmp["ConnectTime"] = record["Event"]["System"]["TimeCreated"]["@SystemTime"]
+            dictTmp["Correlation ActivityID"] = record["Event"]["System"]["Correlation"]["@ActivityID"]
+           
+
+            if type(record["Event"]["EventData"]["Data"]) == list:
+                for data in record["Event"]["EventData"]["Data"]:
+                    if data["@Name"] in target_attr_1024:
+                        if "#text" in data:
+                            dictTmp[data["@Name"]] = data["#text"]
+                        else:
+                            dictTmp[data["@Name"]] = "-"
+            else:
+                if record["Event"]["EventData"]["Data"]["@Name"] in target_attr_1024:
+                    if "#text" in data:
+                        dictTmp[record["Event"]["EventData"]["Data"]["@Name"]] = \
+                                    record["Event"]["EventData"]["Data"]["#text"]
+                    else:
+                        dictTmp[record["Event"]["EventData"]["Data"]["@Name"]] = "-"
+
+
+            result_1024.append(dictTmp)
+
+        elif record["Event"]["System"]["EventID"]["#text"] == "1029":
             dictTmp["Time"] = record["Event"]["System"]["TimeCreated"]["@SystemTime"]
             dictTmp["Correlation ActivityID"] = record["Event"]["System"]["Correlation"]["@ActivityID"]
             
-            for data in record["Event"]["EventData"]["Data"]:
-                if data["@Name"] in target_attr:
+            if type(record["Event"]["EventData"]["Data"]) == list:
+                for data in record["Event"]["EventData"]["Data"]:
+                    if data["@Name"] in target_attr_1029:
+                        if "#text" in data:
+                            dictTmp[data["@Name"]] = data["#text"]
+                        else:
+                            dictTmp[data["@Name"]] = "-"
+            else:
+                if record["Event"]["EventData"]["Data"]["@Name"] in target_attr_1029:
                     if "#text" in data:
-                        dictTmp[data["@Name"]] = data["#text"]
+                        dictTmp[record["Event"]["EventData"]["Data"]["@Name"]] = \
+                                    record["Event"]["EventData"]["Data"]["#text"]
                     else:
-                        dictTmp[data["@Name"]] = "-"
+                        dictTmp[record["Event"]["EventData"]["Data"]["@Name"]] = "-"
+                
+            
+            result_1029.append(dictTmp)
 
-            result.append(dictTmp)
+        elif record["Event"]["System"]["EventID"]["#text"] == "1026":
+            dictTmp["DisconnectTime"] = record["Event"]["System"]["TimeCreated"]["@SystemTime"]
+            dictTmp["Correlation ActivityID"] = record["Event"]["System"]["Correlation"]["@ActivityID"]
+           
+            
+            if type(record["Event"]["EventData"]["Data"]) == list:
+                for data in record["Event"]["EventData"]["Data"]:
+                    if data["@Name"] in target_attr_1026:
+                        if "#text" in data:
+                            dictTmp[data["@Name"]] = data["#text"]
+                        else:
+                            dictTmp[data["@Name"]] = "-"
+            else:
+                if record["Event"]["EventData"]["Data"]["@Name"] in target_attr_1026:
+                    if "#text" in data:
+                        dictTmp[record["Event"]["EventData"]["Data"]["@Name"]] = \
+                                    record["Event"]["EventData"]["Data"]["#text"]
+                    else:
+                        dictTmp[record["Event"]["EventData"]["Data"]["@Name"]] = "-"
+            
+            if dictTmp["Value"] != "263": 
+                result_1026.append(dictTmp)
+
+        elif record["Event"]["System"]["EventID"]["#text"] == "1027":
+            dictTmp["SuccessTime"] = record["Event"]["System"]["TimeCreated"]["@SystemTime"]
+            dictTmp["Correlation ActivityID"] = record["Event"]["System"]["Correlation"]["@ActivityID"]
+            
+            if type(record["Event"]["EventData"]["Data"]) == list:
+                for data in record["Event"]["EventData"]["Data"]:
+                    if data["@Name"] in target_attr_1027:
+                        if "#text" in data:
+                            dictTmp[data["@Name"]] = data["#text"]
+                        else:
+                            dictTmp[data["@Name"]] = "-"
+            else:
+                if record["Event"]["EventData"]["Data"]["@Name"] in target_attr_1027:
+                    if "#text" in data:
+                        dictTmp[record["Event"]["EventData"]["Data"]["@Name"]] = \
+                                    record["Event"]["EventData"]["Data"]["#text"]
+                    else:
+                        dictTmp[record["Event"]["EventData"]["Data"]["@Name"]] = "-"
+            
+            result_1027.append(dictTmp)
 
         else:
             pass
 
-    dfLogon = pd.DataFrame(result)
-    dfLogon.to_csv("rdpclient.csv")
+    dfConnect = pd.DataFrame(result_1024)
+    dfConnect.rename(columns={"Value":"TargetServerIP"},inplace=True)
+    dfConnect.to_csv("connect.csv")
+    dfDisconnect = pd.DataFrame(result_1026)
+    dfDisconnect.rename(columns={"Value":"DisconnectReason"},inplace=True)
+    dfDisconnect.to_csv("disconnect.csv")
+    output = pd.merge(dfConnect, dfDisconnect, on="Correlation ActivityID", how="left")
+    
+    dfUser = pd.DataFrame(result_1029)
+    if len(dfUser) != 0:
+        dfUser = dfUser.groupby("Correlation ActivityID")["TraceMessage"] \
+                                     .apply( lambda x: "{%s}"%",".join(x)).reset_index()
+        dfUser.rename(columns={"TraceMessage":"Base64(SHA1(UserName))"},inplace=True)
+        dfUser.to_csv("user.csv")
+        output = pd.merge(output, dfUser, on="Correlation ActivityID", how="left")
+
+    dfSuccess = pd.DataFrame(result_1027)
+    dfSuccess.to_csv("success.csv")
+    if len(dfSuccess) != 0:
+        output = pd.merge(output, dfSuccess, on="Correlation ActivityID", how="left")
+    
+
+    output["LogonDuration"] = pd.Series([timediff(output["SuccessTime"][i], output["DisconnectTime"][i]) \
+                                            for i in xrange(0,len(output))])
+    output.fillna("-",inplace=True)
+    col = output.columns.tolist()
+    col.remove('SuccessTime')
+    col.insert(1,'SuccessTime')
+    col.remove('DisconnectTime')
+    col.insert(2,'DisconnectTime')
+    col.remove('LogonDuration')
+    col.insert(3,'LogonDuration')
+    col.remove('Correlation ActivityID')
+    col.insert(len(col),'Correlation ActivityID')
+
+    return output.ix[:,col]
 
 
 def main():
