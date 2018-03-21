@@ -7,7 +7,8 @@ The output formt is Microsoft Excel(.xlsx) so that we can easily do further anal
 ## how to use
 1. dump Security.evtx to xml format
  - `evtx_dump.py Security.evtx > Security.xml`
-2. do logon analysis
+2. do analysis
+ - `analyzer.py <xml file> <module name>`
  - `analyzer.py Security.xml logon`
  - `analyzer.py Microsoft-Windows-TerminalServices-RDPClient%4Operational.evtx rdpclient`
 
