@@ -74,15 +74,9 @@ def analyze_logon(fobj):
     dfLogon.to_csv("4624.csv")
 
 
-def analyze_rdp(fobj):
+def analyze_rdpclient(fobj):
     result = []
-    listTargetAttr4624 = ['LogonType', 'TargetUserName', 'TargetDomainName', 
-                            'IpAddress', 'IpPort', 'WorkstationName', 'ProcessName',
-                            'AuthenticationPackageName', 'TransmittedServices',
-                            'LmPackageName', 'KeyLength', 'SubjectUserName',
-                            'SubjectUserSid', 'SubjectDomainName', 'SubjectLogonId',
-                            'TargetUserSid', 'ProcessId', 'LogonProcessName',
-                            'TargetLogonId']
+    target_attr = ['Value']
     dictTmp = OrderedDict()
     
     while True:
@@ -100,9 +94,10 @@ def analyze_rdp(fobj):
         record = xmltodict.parse(event)
         if record["Event"]["System"]["EventID"]["#text"] == "4624":
             dictTmp["Time"] = record["Event"]["System"]["TimeCreated"]["@SystemTime"]
+            dictTmp["Correlation ActivityID"] = record["Event"]["System"]["Correlation"]["@ActivityID"]
             
             for data in record["Event"]["EventData"]["Data"]:
-                if data["@Name"] in listTargetAttr4624:
+                if data["@Name"] in target_attr:
                     if "#text" in data:
                         dictTmp[data["@Name"]] = data["#text"]
                     else:
@@ -114,7 +109,7 @@ def analyze_rdp(fobj):
             pass
 
     dfLogon = pd.DataFrame(result)
-    dfLogon.to_csv("4624.csv")
+    dfLogon.to_csv("rdpclient.csv")
 
 
 def main():
@@ -128,8 +123,8 @@ def main():
     fobj =  open(args.xml,"r")
     if args.module.upper() == "LOGON":
         analyze_logon(fobj)
-    elif args.module.upper() == "RDP":
-        analyze_rdp(fobj)
+    elif args.module.upper() == "RDPCLIENT":
+        analyze_rdpclient(fobj)
 
 if __name__ == "__main__":
     main()
