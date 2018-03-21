@@ -29,14 +29,8 @@ def readuntil(fobj, string):
         if string in data:
             return data
 
-        
-def main():
-    parser = argparse.ArgumentParser(
-        description="Parse logon event combined with correspond logoff event.")
-    parser.add_argument("xml", type=str,
-                        help="Path to the Windows event log xml")
-    args = parser.parse_args()
-    listDict4624 = [] 
+def analyze_logon(fobj):
+    result = []
     listTargetAttr4624 = ['LogonType', 'TargetUserName', 'TargetDomainName', 
                             'IpAddress', 'IpPort', 'WorkstationName', 'ProcessName',
                             'AuthenticationPackageName', 'TransmittedServices',
@@ -44,7 +38,8 @@ def main():
                             'SubjectUserSid', 'SubjectDomainName', 'SubjectLogonId',
                             'TargetUserSid', 'ProcessId', 'LogonProcessName',
                             'TargetLogonId']
-    fobj =  open(args.xml,"r")
+    dictTmp = OrderedDict()
+    
     while True:
         try:
             event = readuntil(fobj, "</Event>")
@@ -58,23 +53,81 @@ def main():
             print "There is </Event> but not <Event>. Conitnue to next"
             continue
         record = xmltodict.parse(event)
-
-        dictTmp = OrderedDict()
         if record["Event"]["System"]["EventID"]["#text"] == "4624":
-                dictTmp["Time"]=record["Event"]["System"]["TimeCreated"]["@SystemTime"]
-                for data in record["Event"]["EventData"]["Data"]:
-                    if data["@Name"] in listTargetAttr4624:
-                        if "#text" in data:
-                            dictTmp[data["@Name"]] = data["#text"]
-                        else:
-                            dictTmp[data["@Name"]] = "-"
-                listDict4624.append(dictTmp)
+            dictTmp["Time"] = record["Event"]["System"]["TimeCreated"]["@SystemTime"]
+            
+            for data in record["Event"]["EventData"]["Data"]:
+                if data["@Name"] in listTargetAttr4624:
+                    if "#text" in data:
+                        dictTmp[data["@Name"]] = data["#text"]
+                    else:
+                        dictTmp[data["@Name"]] = "-"
+
+            result.append(dictTmp)
+
         else:
             pass
-    
-    dfLogon = pd.DataFrame(listDict4624)
+
+    dfLogon = pd.DataFrame(result)
     dfLogon.to_csv("4624.csv")
 
+
+def analyze_logon(fobj):
+    result = []
+    listTargetAttr4624 = ['LogonType', 'TargetUserName', 'TargetDomainName', 
+                            'IpAddress', 'IpPort', 'WorkstationName', 'ProcessName',
+                            'AuthenticationPackageName', 'TransmittedServices',
+                            'LmPackageName', 'KeyLength', 'SubjectUserName',
+                            'SubjectUserSid', 'SubjectDomainName', 'SubjectLogonId',
+                            'TargetUserSid', 'ProcessId', 'LogonProcessName',
+                            'TargetLogonId']
+    dictTmp = OrderedDict()
+    
+    while True:
+        try:
+            event = readuntil(fobj, "</Event>")
+            if event == "":
+                break
+        except:
+            break
+        try:
+            event = event[event.find("<Event "):]
+        except:
+            print "There is </Event> but not <Event>. Conitnue to next"
+            continue
+        record = xmltodict.parse(event)
+        if record["Event"]["System"]["EventID"]["#text"] == "4624":
+            dictTmp["Time"] = record["Event"]["System"]["TimeCreated"]["@SystemTime"]
+            
+            for data in record["Event"]["EventData"]["Data"]:
+                if data["@Name"] in listTargetAttr4624:
+                    if "#text" in data:
+                        dictTmp[data["@Name"]] = data["#text"]
+                    else:
+                        dictTmp[data["@Name"]] = "-"
+
+            result.append(dictTmp)
+
+        else:
+            pass
+
+    dfLogon = pd.DataFrame(result)
+    dfLogon.to_csv("4624.csv")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Parse logon event combined with correspond logoff event.")
+    parser.add_argument("xml", type=str, help="Path to the Windows event log xml")
+    parser.add_argument("module", type=str, help="Analyze module such as logon, rdp, etc..")
+    args = parser.parse_args()
+
+    result = []
+    fobj =  open(args.xml,"r")
+    if args.module.upper() == "LOGON":
+        analyze_logon(fobj)
+    elif args.module.upper() == "RDP":
+        analyze_rdp(fobj)
 
 if __name__ == "__main__":
     main()
