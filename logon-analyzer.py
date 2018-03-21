@@ -15,7 +15,16 @@ def timediff(strtime1, strtime2, strptime="%Y-%m-%d %H:%M:%S.%f"):
     if pd.isna(strtime1) or pd.isna(strtime2):
         return "NULL"
     else:
-        return datetime.strptime(strtime2, strptime) - datetime.strptime(strtime1, strptime)
+        try:
+            time2 = datetime.strptime(strtime2, strptime)
+        except: 
+            time2 = datetime.strptime(strtime2, "%Y-%m-%d %H:%M:%S")
+        try:
+            time1 = datetime.strptime(strtime1, strptime)
+        except: 
+            time1 = datetime.strptime(strtime1, "%Y-%m-%d %H:%M:%S")
+        delta = time2 - time1
+        return delta.total_seconds()
 
 
 def core():
@@ -29,9 +38,12 @@ def core():
     listDict4672 = []
     listDict4648 = []
     with open(args.evtx,"r") as fobj:
-        logs = fobj.read().split("\n\n")[1:-1]
+        logs = fobj.read().split("\n\n")
         for record in logs:
-            elem = et.fromstring(record.replace("xmlns=\"","ns=\""))
+            try:
+                elem = et.fromstring(record.replace("xmlns=\"","ns=\""))
+            except:
+                continue
             dictTmp = OrderedDict()
             if elem.findtext(".//EventID") == "4624":
                 dictTmp["LogonTime"]=elem.find(".//TimeCreated").get("SystemTime")
@@ -87,17 +99,18 @@ def core():
     dfLogoff = pd.DataFrame(listDict4634)
     dfGetPriv = pd.DataFrame(listDict4672).groupby("LogonId")["PrivEscalateTime"] \
       .apply( lambda x: "{%s}"%",".join(x)).reset_index()
-    df4648 = pd.DataFrame(listDict4648)
     dfGetPriv.to_excel("4672.xlsx", sheet_name="Logon-off")
-    df4648.to_excel("4648.xlsx", sheet_name="Logon-off")
-    df4648.to_csv("4648.csv")
-    df4648 = df4648.groupby("LogonId")["TargetServerName"].count().reset_index()
-    df4648.rename(columns={"TargetServerName":"#ExplicitLogonTrial"},inplace=True)
-
     dfOut = pd.merge(dfLogon, dfLogoff, on="LogonId", how="left")
     dfOut = pd.merge(dfOut, dfGetPriv, on="LogonId", how="left")
-    dfOut = pd.merge(dfOut, df4648, on="LogonId", how="left")
-    dfOut["#ExplicitLogonTrial"].fillna("-",inplace=True)
+    
+    df4648 = pd.DataFrame(listDict4648)
+    if len(df4648) != 0:
+        df4648.to_excel("4648.xlsx", sheet_name="Logon-off")
+        df4648 = df4648.groupby("LogonId")["TargetServerName"].count().reset_index()
+        df4648.rename(columns={"TargetServerName":"#ExplicitLogonTrial"},inplace=True)
+        dfOut = pd.merge(dfOut, df4648, on="LogonId", how="left")
+        dfOut["#ExplicitLogonTrial"].fillna("-",inplace=True)
+
     dfOut["LogonDuration"] = \
       pd.Series([timediff(dfOut["LogonTime"][i], dfOut["LogoffTime"][i]) for i in xrange(0,len(dfOut))])
     col = dfOut.columns.tolist()
