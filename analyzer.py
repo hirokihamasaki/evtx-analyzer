@@ -196,7 +196,7 @@ def analyze_rdpclient(fobj):
                             dictTmp[data["@Name"]] = "-"
             else:
                 if record["Event"]["EventData"]["Data"]["@Name"] in target_attr_1024:
-                    if "#text" in record["Event"]["EventData"]["Data"]["@Name"]:
+                    if "#text" in record["Event"]["EventData"]["Data"]:
                         dictTmp[record["Event"]["EventData"]["Data"]["@Name"]] = \
                                     record["Event"]["EventData"]["Data"]["#text"]
                     else:
@@ -218,7 +218,7 @@ def analyze_rdpclient(fobj):
                             dictTmp[data["@Name"]] = "-"
             else:
                 if record["Event"]["EventData"]["Data"]["@Name"] in target_attr_1029:
-                    if "#text" in record["Event"]["EventData"]["Data"]["@Name"]:
+                    if "#text" in record["Event"]["EventData"]["Data"]:
                         dictTmp[record["Event"]["EventData"]["Data"]["@Name"]] = \
                                     record["Event"]["EventData"]["Data"]["#text"]
                     else:
@@ -241,7 +241,7 @@ def analyze_rdpclient(fobj):
                             dictTmp[data["@Name"]] = "-"
             else:
                 if record["Event"]["EventData"]["Data"]["@Name"] in target_attr_1026:
-                    if "#text" in record["Event"]["EventData"]["Data"]["@Name"]:
+                    if "#text" in record["Event"]["EventData"]["Data"]:
                         dictTmp[record["Event"]["EventData"]["Data"]["@Name"]] = \
                                     record["Event"]["EventData"]["Data"]["#text"]
                     else:
@@ -263,7 +263,7 @@ def analyze_rdpclient(fobj):
                             dictTmp[data["@Name"]] = "-"
             else:
                 if record["Event"]["EventData"]["Data"]["@Name"] in target_attr_1027:
-                    if "#text" in record["Event"]["EventData"]["Data"]["@Name"]:
+                    if "#text" in record["Event"]["EventData"]["Data"]:
                         dictTmp[record["Event"]["EventData"]["Data"]["@Name"]] = \
                                     record["Event"]["EventData"]["Data"]["#text"]
                     else:
