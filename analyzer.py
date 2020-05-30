@@ -10,6 +10,8 @@ from collections import OrderedDict
 import pandas.io.formats.excel
 from datetime import datetime
 import json
+import ipdb
+import codecs
 
 def timediff(strtime1, strtime2, strptime="%Y-%m-%d %H:%M:%S.%f"):
     if pd.isna(strtime1) or pd.isna(strtime2):
@@ -38,6 +40,364 @@ def readuntil(fobj, string):
             data += byte
         if string in data:
             return data
+
+
+def watch(fobj):
+
+    while True:
+        try:
+            event = readuntil(fobj, "</Event>")
+            if event == "":
+                break
+        except:
+            break
+        try:
+            event = event[event.find("<Event "):]
+        except:
+            print "There is </Event> but not <Event>. Conitnue to next"
+            continue
+        record = xmltodict.parse(event)
+        dictTmp = OrderedDict()
+        ipdb.set_trace()
+    return False
+
+
+def dump_EventData_DataArray(fobj, source):
+
+    result = []
+    while True:
+        try:
+            event = readuntil(fobj, "</Event>")
+            if event == "":
+                break
+        except:
+            break
+
+        try:
+            event = event[event.find("<Event "):]
+        except:
+            print "There is </Event> but not <Event>. Conitnue to next"
+            continue
+
+        try:
+            record = xmltodict.parse(event)
+            dictTmp = OrderedDict()
+            dictTmp["Time"] = record["Event"]["System"]["TimeCreated"]["@SystemTime"]
+            dictTmp["Computer"] = record["Event"]["System"]["Computer"]
+            try:
+                dictTmp["EventID"] = record["Event"]["System"]["EventID"]["#text"]
+            except:
+                dictTmp["EventID"] = record["Event"]["System"]["EventID"]
+
+            try:
+                dictTmp["CorrelationID"] = record["Event"]["System"]["Correlation"]["@ActivityID"]
+            except:
+                dictTmp["CorrelationID"] = "-"
+
+            try:
+                dictTmp["ProcessID"] = record["Event"]["System"]["Execution"]["@ProcessID"]
+            except:
+                dictTmp["ProcessID"] = "-"
+
+            try:
+                dictTmp["ThreadID"] = record["Event"]["System"]["Execution"]["ThreadID"]
+            except:
+                dictTmp["ThreadID"] = "-"
+            
+            try:
+                dictTmp["Channel"] = record["Event"]["System"]["Channel"]
+            except:
+                dictTmp["Channel"] = "-"
+          
+            try:
+                dictTmp["Message"] = record["Event"]["RenderingInfo"]["Message"] 
+            except:
+                dictTmp["Message"] = "-"
+
+            try:
+                dictTmp["EventDataName"] = record["Event"]["EventData"]["@Name"]
+            except:
+                dictTmp["EventDataName"] = "-"
+
+
+            if record["Event"]["EventData"]:
+                if type(record["Event"]["EventData"]["Data"]) != list:
+                    data = [record["Event"]["EventData"]["Data"]]
+                else:
+                    data = record["Event"]["EventData"]["Data"]
+
+                for entry in data:
+                    try:
+                        dictTmp[entry["@Name"]] = entry["#text"]
+                    except Exception as e:
+                        print u"[Warning]: the entry has no #text key: {}".format(dict(entry))
+
+            result.append(dictTmp)
+           
+        except Exception as e: 
+            print e
+            print u"[Warning]: couldn't parse {}".format(event)
+            ipdb.set_trace()
+
+    df = pd.DataFrame(result)
+    
+    if len(df) != 0:
+        df.to_excel("dump{}.xlsx".format(source), index=False)
+
+    return False
+
+
+def dumpTermServLSandRCMngOpe(fobj, source):
+
+    result = []
+    while True:
+        try:
+            event = readuntil(fobj, "</Event>")
+            if event == "":
+                break
+        except:
+            break
+        try:
+            event = event[event.find("<Event "):]
+        except:
+            print "There is </Event> but not <Event>. Conitnue to next"
+            continue
+        try:
+            record = xmltodict.parse(event)
+            dictTmp = OrderedDict()
+            dictTmp["Time"] = record["Event"]["System"]["TimeCreated"]["@SystemTime"]
+            dictTmp["Computer"] = record["Event"]["System"]["Computer"]
+            try:
+                dictTmp["EventID"] = record["Event"]["System"]["EventID"]["#text"]
+            except:
+                dictTmp["EventID"] = record["Event"]["System"]["EventID"]
+
+            try:
+                dictTmp["CorrelationID"] = record["Event"]["System"]["Correlation"]["@ActivityID"]
+            except:
+                dictTmp["CorrelationID"] = "-"
+
+            try:
+                dictTmp["ProcessID"] = record["Event"]["System"]["Execution"]["@ProcessID"]
+            except:
+                dictTmp["ProcessID"] = "-"
+
+            try:
+                dictTmp["ThreadID"] = record["Event"]["System"]["Execution"]["ThreadID"]
+            except:
+                dictTmp["ThreadID"] = "-"
+            
+            try:
+                dictTmp["Channel"] = record["Event"]["System"]["Channel"]
+            except:
+                dictTmp["Channel"] = "-"
+          
+            try:
+                dictTmp["Message"] = record["Event"]["RenderingInfo"]["Message"] 
+            except:
+                dictTmp["Message"] = "-"
+
+            try:
+                if type(record["Event"]["UserData"]["EventXML"]) == list:
+                    for data in record["Event"]["UserData"]["EventXML"]:
+                        for key in data.keys():
+                            dictTmp[key] = data[key]
+                else:
+                    data = record["Event"]["UserData"]["EventXML"]
+                    for key in data.keys():
+                        dictTmp[key] = data[key]
+            except:
+                pass
+
+            result.append(dictTmp)
+           
+        except Exception as e: 
+            print e
+            ipdb.set_trace()
+            print u"[Warning]: couldn't parse {}".format(event)
+
+    df = pd.DataFrame(result)
+    if len(df) != 0:
+        df.to_excel("dump{}.xlsx".format(source), index=False)
+
+    return False
+
+
+def dumpSec462X(fobj):
+    result_4624 = []
+    result_4625 = []
+
+    while True:
+        try:
+            event = readuntil(fobj, "</Event>")
+            if event == "":
+                break
+        except:
+            break
+        try:
+            event = event[event.find("<Event "):]
+        except:
+            print "There is </Event> but not <Event>. Conitnue to next"
+            continue
+        record = xmltodict.parse(event)
+        dictTmp = OrderedDict()
+        if record["Event"]["System"]["EventID"]["#text"] == "4625":
+            dictTmp["Time"] = record["Event"]["System"]["TimeCreated"]["@SystemTime"]
+            dictTmp["EventID"] = record["Event"]["System"]["EventID"]["#text"]
+            
+            for data in record["Event"]["EventData"]["Data"]:
+                if "#text" in data:
+                    dictTmp[data["@Name"]] = data["#text"]
+                else:
+                    dictTmp[data["@Name"]] = "-"
+
+            result_4625.append(dictTmp)
+        elif record["Event"]["System"]["EventID"]["#text"] == "4624":
+            dictTmp["Time"] = record["Event"]["System"]["TimeCreated"]["@SystemTime"]
+            dictTmp["EventID"] = record["Event"]["System"]["EventID"]["#text"]
+            
+            for data in record["Event"]["EventData"]["Data"]:
+                if "#text" in data:
+                    dictTmp[data["@Name"]] = data["#text"]
+                else:
+                    dictTmp[data["@Name"]] = "-"
+
+            result_4624.append(dictTmp)
+        else:
+            pass
+
+    df4624 = pd.DataFrame(result_4624)
+    df4625 = pd.DataFrame(result_4625)
+    if len(df4624) != 0:
+        df4624.to_excel("4624.xlsx", sheet_name="4624")
+    if len(df4625) != 0:
+        df4625.to_excel("4625.xlsx", sheet_name="4625")
+
+    return False
+
+
+def analyze_tgt(fobj):
+    result_4768 = []
+    target_attr_4768 = ['TargetUserName', 'TargetDomainName', 'TargetSid', 'ServiceName', 
+                            'ServiceSid', 'TicketOptions', 'Status', 'TicketEncryptionType',
+                            'PreAuthType', 'IpAddress', 'IpPort', 'CertIssuerName',
+                            'CertSerialNumber', 'CertThumbprint']
+    result_4769 = []
+    target_attr_4769 = ['TargetUserName', 'TargetDomainName', 'ServiceSid', 'ServiceName', 
+                            'TicketOptions', 'Status', 'TicketEncryptionType',
+                            'PreAuthType', 'IpAddress', 'IpPort', 'LogonGuid',
+                            'TransmittedServices']
+    
+    
+    while True:
+        try:
+            event = readuntil(fobj, "</Event>")
+            if event == "":
+                break
+        except:
+            break
+        try:
+            event = event[event.find("<Event "):]
+        except:
+            print "There is </Event> but not <Event>. Conitnue to next"
+            continue
+        record = xmltodict.parse(event)
+        dictTmp = OrderedDict()
+        if record["Event"]["System"]["EventID"]["#text"] == "4768" \
+          or record["Event"]["System"]["EventID"]["#text"] == "4770":
+            dictTmp["Time"] = record["Event"]["System"]["TimeCreated"]["@SystemTime"]
+            dictTmp["EventID"] = record["Event"]["System"]["EventID"]["#text"]
+            
+            for data in record["Event"]["EventData"]["Data"]:
+                if data["@Name"] in target_attr_4768:
+                    if "#text" in data:
+                        dictTmp[data["@Name"]] = data["#text"]
+                    else:
+                        dictTmp[data["@Name"]] = "-"
+
+            result_4768.append(dictTmp)
+        elif record["Event"]["System"]["EventID"]["#text"] == "4769":
+            dictTmp["Time"] = record["Event"]["System"]["TimeCreated"]["@SystemTime"]
+            dictTmp["EventID"] = record["Event"]["System"]["EventID"]["#text"]
+            
+            for data in record["Event"]["EventData"]["Data"]:
+                if data["@Name"] in target_attr_4769:
+                    if "#text" in data:
+                        dictTmp[data["@Name"]] = data["#text"]
+                    else:
+                        dictTmp[data["@Name"]] = "-"
+
+            result_4769.append(dictTmp)
+        else:
+            pass
+
+    return output
+    dfTgt = pd.DataFrame(result_4768)
+    dfTgt["TicketEncryptionType"] = dfTgt["TicketEncryptionType"].apply(lambda x: "AES256-CTS-HMAC-SHA1-96" if x == "0x00000012" else "RC4-HMAC"  if x == "0x00000017" else x)
+    dfTgt["TargetDomainName"] = dfTgt["TargetDomainName"].apply(lambda x: x+"(not capital)" if x.upper() != x else x)
+    dfTgt = dfTgt.sort_values("Time")
+    
+    dfTgs = pd.DataFrame(result_4769)
+    dfTgs["TicketEncryptionType"] = dfTgs["TicketEncryptionType"].apply(lambda x: "AES256-CTS-HMAC-SHA1-96" if x == "0x00000012" else "RC4-HMAC"  if x == "0x00000017" else x)
+    dfTgs["TargetDomainName"] = dfTgs["TargetDomainName"].apply(lambda x: x+"(not capital)" if x.upper() != x else x)
+    dfTgs = dfTgs.sort_values("Time")
+
+    dfTgtTgs = pd.concat([dfTgt, dfTgs])
+
+    if len(dfTgtTgs) != 0:
+        dfTgtTgs.to_excel("4768_4769.xlsx", sheet_name="TGT-TGS-requests")
+
+    output = pd.DataFrame()
+
+    for tgsindex, tgsrow in dfTgs.iterrows():
+        print "[-]target tgs: " + tgsrow["Time"] + " " + tgsrow["TargetUserName"]
+        target = dfTgt[dfTgt["IpAddress"]==tgsrow["IpAddress"]]
+        target = target[target["TargetUserName"].apply(lambda x: str(x).split("@")[0])==tgsrow["TargetUserName"].split("@")[0]]
+        #target = target[target["TargetDomainName"].apply(lambda x: str(x).upper.split("(")[0]) ==str(tgsrow["TargetDomainName"]).upper()]
+
+        if len(target) == 0:
+            output = output.append(tgsrow)
+            continue
+         
+        target.reset_index(drop=True, inplace=True)
+        target = target.sort_values("Time")
+
+
+        if timediff(target.loc[0]["Time"], tgsrow["Time"]) < 0:
+            output = output.append(tgsrow)
+        else:
+            place = -1
+            # find location where (tgs time > previous tgt time) and (tgs time < next tgt time)
+            for index, targetrow in target.iterrows():
+                if int(index) == len(target) - 1:
+                    place = int(index)
+                    break
+                try:
+                    if timediff(target.loc[int(index)+1]["Time"], tgsrow["Time"]) < 0:
+                        place = int(index)
+                        break
+                except:
+                    pass
+            
+            if timediff(target.loc[place]["Time"], tgsrow["Time"]) > 10*60*60:
+                try: 
+                    print "    [-]found tgt: " + target.loc[place]["Time"] + " " + target.loc[place]["TargetUserName"]
+                except:
+                    pass
+                try: 
+                    print "    [-]found tgt previous: " + target.loc[place-1]["Time"] + " " + target.loc[place-1]["TargetUserName"]
+                except:
+                    pass
+                try: 
+                    print "    [-]found tgt next: " + target.loc[place+1]["Time"] +" "+ target.loc[place+1]["TargetUserName"]
+                except:
+                    pass
+                output = output.append(tgsrow)
+            else:
+                pass
+            
+    return output
+
 
 def analyze_logon(fobj):
     result_4624 = []
@@ -313,20 +673,47 @@ def analyze_rdpclient(fobj):
 
 
 def main():
+    choices = ["dump4624x", "dumpRDPTS", "dumpTaskOpe", "dumpLocalSessionMngOpe", "dumpSMBClientConn", "dumpRemoteConnMngOpe", "logon", "rdpclient", "goldenticket", "watch"]
     parser = argparse.ArgumentParser(
         description="Parse logon event combined with correspond logoff event.")
     parser.add_argument("xml", type=str, help="Path to the Windows event log xml")
-    parser.add_argument("module", type=str, help="Analyze module such as logon, rdp, etc..")
+    parser.add_argument("module", type=str, choices=choices, help="Analyze module such as logon, rdp, etc..")
+    parser.add_argument("codecs", type=str, help="utf16 or utf8")
     args = parser.parse_args()
 
-    fobj =  open(args.xml,"r")
-    if args.module.upper() == "LOGON":
-        result = analyze_logon(fobj)
-    elif args.module.upper() == "RDPCLIENT":
-        result = analyze_rdpclient(fobj)
+    if args.codecs == "utf8":
+        fobj =  open(args.xml,"r")
+    elif args.codecs == "utf16":
+        fobj = codecs.open(args.xml, "r", "utf-16")
     else:
-        print "Input module {} is not valid".format(args.xml)
+        print "Error: not supported codecs"
         exit()
+    if args.module.lower() == "dump462x":
+        result = dumpSec462X(fobj)
+    elif args.module.lower() == "dumptaskope":
+        result = dump_EventData_DataArray(fobj, "TaskOpe")
+    elif args.module.lower() == "dumpsmbclientconn":
+        result = dump_EventData_DataArray(fobj, "SMBClientConn")
+    elif args.module.lower() == "dumprdpts":
+        result = dump_EventData_DataArray(fobj, "RDPTS")
+    elif args.module.lower() == "dumplocalsessionmngope":
+        result = dumpTermServLSandRCMngOpe(fobj, "LocalSessionMngOpe")
+    elif args.module.lower() == "dumpremoteconnmngope":
+        result = dumpTermServLSandRCMngOpe(fobj, "RemoteConnMngOpe")
+    elif args.module.lower() == "logon":
+        result = analyze_logon(fobj)
+    elif args.module.lower() == "rdpclient":
+        result = analyze_rdpclient(fobj)
+    elif args.module.lower() == "goldenticket":
+        result = analyze_tgt(fobj)
+    elif args.module.lower() == "watch":
+        result = watch(fobj)
+    else:
+        print "Input module {} is not valid".format(args.module)
+        exit()
+
+    if result == False:
+        return
 
     outFile = "evtx_analysis_result_"+ args.module +".xlsx"
     pandas.io.formats.excel.header_style = None
@@ -338,9 +725,6 @@ def main():
     workbook.formats[0].set_bold(False)
     workbook.formats[0].set_left(True)
     writer.save()
-
-
-
 
 if __name__ == "__main__":
     main()

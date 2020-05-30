@@ -11,13 +11,14 @@ The output formt is Microsoft Excel(.xlsx) so that we can easily do further anal
  - `analyzer.py <xml file> <module name>`
  - `analyzer.py Security.xml logon`
  - `analyzer.py Microsoft-Windows-TerminalServices-RDPClient%4Operational.evtx rdpclient`
-
+ - the result is saved as svtx_analysis_result_(modulename).xlsx
+ 
 ## Dependency
 pip install python-evtx pandas openpyxl XlsxWriter
 
 ## analysis modules
 ### logon
-We can get information below on each LUID(so called logon ID) which assigned by Windows authentication package from Security.evtx.
+We can get information described below on each LUID(so called logon ID) which assigned by Windows authentication package.
 * "logontime/logofftime"
 * "get privilege?"
 * "do explicit credential use logon"? 
