@@ -487,12 +487,21 @@ def analyze_logon(fobj):
             pass
 
     dfLogon = pd.DataFrame(result_4624)
+    if len(dfLogon) == 0:
+        print "[Error]: There is no 4624 entries. Exit.."
+        exit()
+
+    output= dfLogon
     dfLogoff = pd.DataFrame(result_4634)
-    dfGetPriv = pd.DataFrame(result_4672).groupby("SubjectLogonId")["PrivEscalateTime(4672)"] \
+    if len(dfLogoff) != 0:
+        output = pd.merge(output, dfLogoff, on="TargetLogonId", how="left")
+    
+    dfGetPriv = pd.DataFrame(result_4672)
+    if len(dfGetPriv) != 0:
+        dfGetPrivGrouped = dfGetPriv.groupby("SubjectLogonId")["PrivEscalateTime(4672)"] \
                                 .apply( lambda x: "{%s}"%",".join(x)).reset_index()
 
-    output = pd.merge(dfLogon, dfLogoff, on="TargetLogonId", how="left")
-    output = pd.merge(output, dfGetPriv, left_on="TargetLogonId",right_on="SubjectLogonId", how="left")
+    output = pd.merge(output, dfGetPrivGrouped, left_on="TargetLogonId",right_on="SubjectLogonId", how="left")
 
     dfExplicitLogon = pd.DataFrame(result_4648)
     if len(dfExplicitLogon) != 0:
